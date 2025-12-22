@@ -9,7 +9,7 @@ class DataProcessor(ABC):
 
     validate()      :自身で扱えるdataかvalidation
     process()       :データを処理後、文字列にして返す
-    format_output   :文字列を整形して返す
+    format_output() :文字列を整形して返す
     """
 
     @abstractmethod

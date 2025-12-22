@@ -1,0 +1,289 @@
+#!/usr/bin/env python3
+from abc import ABC, abstractmethod
+from typing import Any, Optional, Union
+
+
+class DataStream(ABC):
+    """
+    抽象化ポリモーフィズム基底クラス
+    リストを処理可能
+
+    filter_data()   :list_dataの必要な要素のみ抜粋して返す
+    process_batch() :listを処理後、文字列にして返す
+    get_stats()     :文字列を整形して返す
+    """
+
+    def __init__(self, stream_id: str) -> None:
+        """初期化関数"""
+
+        self.strem_id = stream_id
+
+    def filter_data(self,
+                    data_batch: list[Any],
+                    criteria: Optional[str] = None) -> list[Any]:
+        """list_dataの必要な要素のみ抜粋して返す"""
+
+        pass
+
+    @abstractmethod
+    def process_batch(self, data_batch: list[Any]) -> str:
+        """listを処理後、文字列にして返す"""
+
+        pass
+
+    def get_stats(self) -> dict[str, Union[str, int, float]]:
+        """stream_id、class_nameをdictとして返す"""
+
+        return {
+            "stream_id": self.strem_id,
+            "type": self.__class__.__name__
+        }
+
+
+class SensorStream(DataStream):
+    """
+    抽象化ポリモーフィズム特化クラス
+    センサーリストを処理可能
+    """
+
+    def __init__(self, stream_id: str) -> None:
+        """初期化関数"""
+
+        super.__init__(stream_id)
+        self.total_processed = 0
+
+    def filter_data(self,
+                    data_batch: list[Any],
+                    criteria: Optional[str] = None) -> list[Any]:
+        """
+        1.dict型であること
+        2.valueがintかfloatであること
+
+        以上を抜粋して返す
+        """
+
+        clean_data = []
+        for item in data_batch:
+            if not isinstance(item, dict):
+                continue
+
+            for value in item.values():
+                if not isinstance(value, int or float):
+                    continue
+            clean_data.append(item)
+        return clean_data
+
+    def process_batch(self, data_batch: list[Any]) -> str:
+        """温度のみ抜粋して平均で割って、文字列にして返す"""
+
+        temp_list = []
+        clear_data = self.filter_data(data_batch)
+        self.total_processed += len(clear_data)
+
+        # 1.tempだけ抜粋
+        for key, value in clear_data:
+            if key == "temp":
+                temp_list.append(value)
+
+        # 2.平均を計算
+        average = sum(temp_list) / len(temp_list)
+
+        # 3.整形して出力
+        count = len(clear_data)
+        text = (f"Sensor analysis: {count} readings processed, "
+                f"avg temp: {average:.1f}°C")
+        return text
+
+    def get_stats(self) -> dict[str, Union[str, int, float]]:
+        """total_processedをdictに加えて返す"""
+
+        stats = super().get_stats()
+        stats["total_processed"] = self.total_processed
+
+        return stats
+
+
+class TransactionStream(DataStream):
+    """
+    抽象化ポリモーフィズム特化クラス
+    Trancasctionリストを処理可能
+    """
+
+    def __init__(self, stream_id: str) -> None:
+        """初期化関数"""
+
+        super.__init__(stream_id)
+        self.total_processed = 0
+
+    def filter_data(
+            self,
+            data_batch: list[Any],
+            criteria: Optional[str] = None) -> list[Any]:
+        """
+        1.dict型であること
+        2.keyがbuyかsellであること
+        3.valueがintかfloatのみであること
+
+        以上を抜粋して返す
+        """
+
+        clean_data = []
+        for item in data_batch:
+            if not isinstance(item, dict):
+                continue
+
+            for key in item.keys():
+                if not key == "buy" or "sell":
+                    continue
+
+            for value in item.values():
+                if not isinstance(value, int or float):
+                    continue
+
+            clean_data.append(item)
+
+        return clean_data
+
+    def process_batch(self, data_batch: list[Any]) -> str:
+        """
+        1.keyがbuyであれば+value
+        2.keyがsellであれば-value
+
+        以上を行った合計値を文字列にして返す
+        """
+
+        result = 0
+        clear_data = self.filter_data(data_batch)
+        self.total_processed += len(clear_data)
+
+        # 1.just計算
+        for key, value in clear_data:
+            if key == "buy":
+                result += value
+
+            if key == "sell":
+                result -= value
+
+        # 2.整形して出力
+        count = len(clear_data)
+        text = (f"Transaction analysis: {count} operations, "
+                f"net flow: {result:+} units")
+
+        return text
+
+    def get_stats(self) -> dict[str, Union[str, int, float]]:
+        """total_processedをdictに加えて返す"""
+
+        stats = super().get_stats()
+        stats["total_processed"] = self.total_processed
+
+        return stats
+
+
+class EventStream(DataStream):
+    """
+    抽象化ポリモーフィズム特化クラス
+    Eventリストを処理可能
+    """
+
+    def __init__(self, stream_id: str) -> None:
+        """初期化関数"""
+
+        super.__init__(stream_id)
+        self.total_processed = 0
+
+    def filter_data(self,
+                    data_batch: list[Any],
+                    criteria: Optional[str] = None) -> list[Any]:
+        """
+        1.str型であること
+        2.loginかerrorかlogoutであること
+
+        以上を抜粋して返す
+        """
+
+        clean_data = []
+        for item in data_batch:
+            if not isinstance(item, str):
+                continue
+
+            if not item == "login" or "error" or "logout":
+                continue
+
+            clean_data.append(item)
+
+        return clean_data
+
+    def process_batch(self, data_batch: list[Any]) -> str:
+        """
+        errorの数を数えて合計値を文字列にして返す
+        """
+
+        result = 0
+        clear_data = self.filter_data(data_batch)
+        self.total_processed += len(clear_data)
+
+        # 1.just計算
+        for data in clear_data:
+            if data == "error":
+                result += 1
+
+        # 2.整形して出力
+        count = len(clear_data)
+        text = (f"Event analysis: {count} events, {result} error detected")
+
+        return text
+
+    def get_stats(self) -> dict[str, Union[str, int, float]]:
+        """total_processedをdictに加えて返す"""
+
+        stats = super().get_stats()
+        stats["total_processed"] = self.total_processed
+
+        return stats
+
+
+def main() -> None:
+    """
+    list_data_stream_DEMO
+    """
+
+    print("=== CODE NEXUS - POLYMORPHIC STREAM SYSTEM ===")
+    print()
+
+    # 1.data_base作成
+    id_dict = {"sensor": {"SENSOR": 1},
+               "transaction": {"TRANS": 1},
+               "event": {"EVENT": 1}}
+    data_base = (
+        ("Environmental Data",
+         "sensor",
+         SensorStream,
+         [{"temp": 22.5}, {"humidity": 65}, {"pressure": 1013}]),
+        ("Financial Data",
+         "transaction",
+         TransactionStream,
+         [{"buy": 100}, {"sell": 150}, {"buy": 75}]),
+        ("System Events",
+         "event",
+         EventStream,
+         ["login", "error", "logout"])
+         )
+
+    # 2.process実行
+    for type, name, stream, data in data_base:
+        item_list = list(id_dict[name].items())
+        key, value = item_list[0]
+        id = f"{key}_{value:03}"
+        print(f"Initializing {name} Stream...\n"
+              f"Stream ID: {id}, Type: {type}\n"
+              f"Processing {name} batch: {data}")
+
+        processor = stream(id)
+        text = processor.process_batch(data)
+        print(text)
+        print()
+
+
+if __name__ == "__main__":
+    main()
