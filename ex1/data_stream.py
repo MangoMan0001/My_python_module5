@@ -16,7 +16,7 @@ class DataStream(ABC):
     def __init__(self, stream_id: str) -> None:
         """初期化関数"""
 
-        self.strem_id = stream_id
+        self.stream_id = stream_id
 
     def filter_data(self,
                     data_batch: list[Any],
@@ -35,7 +35,7 @@ class DataStream(ABC):
         """stream_id、class_nameをdictとして返す"""
 
         return {
-            "stream_id": self.strem_id,
+            "stream_id": self.stream_id,
             "type": self.__class__.__name__
         }
 
@@ -51,6 +51,7 @@ class SensorStream(DataStream):
 
         super().__init__(stream_id)
         self.total_processed = 0
+        self.total_alert = {"type alert": 0, "critical sensor alerts": 0}
 
     def filter_data(self,
                     data_batch: list[Any],
@@ -65,11 +66,18 @@ class SensorStream(DataStream):
         clean_data = []
         for item in data_batch:
             if not isinstance(item, dict):
+                self.total_alert["type alert"] += 1
                 continue
 
             for value in item.values():
-                if not isinstance(value, int or float):
+                if not isinstance(value, (int, float)):
+                    self.total_alert["type alert"] += 1
                     continue
+
+                if value < 0 or 100 < value:
+                    self.total_alert["critical sensor alerts"] += 1
+                    continue
+
             clean_data.append(item)
         return clean_data
 
@@ -115,6 +123,8 @@ class TransactionStream(DataStream):
 
         super().__init__(stream_id)
         self.total_processed = 0
+        self.total_alert = {"type error": 0, "key error": 0,
+                            "large transaction": 0}
 
     def filter_data(
             self,
@@ -131,14 +141,21 @@ class TransactionStream(DataStream):
         clean_data = []
         for item in data_batch:
             if not isinstance(item, dict):
+                self.total_alert["type error"] += 1
                 continue
 
             for key in item.keys():
-                if not key == "buy" or "sell":
+                if key not in ["buy", "sell"]:
+                    self.total_alert["key error"] += 1
                     continue
 
             for value in item.values():
-                if not isinstance(value, int or float):
+                if not isinstance(value, (int, float)):
+                    self.total_alert["type error"] += 1
+                    continue
+
+                if 1000 <= value:
+                    self.total_alert["large transaction"] += 1
                     continue
 
             clean_data.append(item)
@@ -193,6 +210,7 @@ class EventStream(DataStream):
 
         super().__init__(stream_id)
         self.total_processed = 0
+        self.total_alert = {"type error": 0, "key error": 0}
 
     def filter_data(self,
                     data_batch: list[Any],
@@ -207,9 +225,11 @@ class EventStream(DataStream):
         clean_data = []
         for item in data_batch:
             if not isinstance(item, str):
+                self.total_alert["type error"] += 1
                 continue
 
             if item not in ["login", "error", "logout"]:
+                self.total_alert["key error"] += 1
                 continue
 
             clean_data.append(item)
@@ -276,12 +296,16 @@ def main() -> None:
          )
     data_base_sats = (
         ("Sensor",
+         "readings",
          SensorStream,
-         [{"temp": 22.5}, {"humidity": 65}]),
+         [{"temp": 101}, {"temp": -1}]),
         ("Transaction",
+         "operations",
          TransactionStream,
-         [{"buy": 100}, {"sell": 150}, {"buy": 75}, {"sell": 75}]),
+         [{"buy": 100}, {"sell": 150},
+          {"buy": 75}, {"buy": 1000}]),
         ("Event",
+         "events",
          EventStream,
          ["login", "error", "logout"])
          )
@@ -316,8 +340,9 @@ def main() -> None:
     print("Processing mixed stream types through unified interface...")
     print()
 
+    alert_result = []
     print("Batch 1 Results:")
-    for name, stream, data in data_base_sats:
+    for name, ing, stream, data in data_base_sats:
         item_list = list(id_dict_stats[name].items())
         key, value = item_list[0]
         id = f"{key}_{value:03}"
@@ -326,10 +351,28 @@ def main() -> None:
         processor.process_batch(data)
         stats = processor.get_stats()
         count = stats["total_processed"]
-        print(f"- {name} data: {count} readings processed")
+        print(f"- {name} data: {count} {ing} processed")
+        alert_result.append(processor.total_alert)
     print()
 
-    print("")
+    print("Stream filtering active: High-priority data only")
+    print("Filtered results: ", end="")
+    for alert in alert_result:
+        i = 0
+        count = len(alert)
+        for message, count in alert.items():
+            if 0 < count:
+                print(f"{count} {message}", end="")
+            else:
+                continue
+            if i < count:
+                print(", ", end="")
+            i += 1
+    print()
+    print()
+
+    print("All streams processed successfully. Nexus throughput optimal.")
+
 
 if __name__ == "__main__":
     main()
