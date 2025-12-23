@@ -49,7 +49,7 @@ class SensorStream(DataStream):
     def __init__(self, stream_id: str) -> None:
         """初期化関数"""
 
-        super.__init__(stream_id)
+        super().__init__(stream_id)
         self.total_processed = 0
 
     def filter_data(self,
@@ -81,9 +81,10 @@ class SensorStream(DataStream):
         self.total_processed += len(clear_data)
 
         # 1.tempだけ抜粋
-        for key, value in clear_data:
-            if key == "temp":
-                temp_list.append(value)
+        for data in clear_data:
+            for key, value in data.items():
+                if key == "temp":
+                    temp_list.append(value)
 
         # 2.平均を計算
         average = sum(temp_list) / len(temp_list)
@@ -112,7 +113,7 @@ class TransactionStream(DataStream):
     def __init__(self, stream_id: str) -> None:
         """初期化関数"""
 
-        super.__init__(stream_id)
+        super().__init__(stream_id)
         self.total_processed = 0
 
     def filter_data(
@@ -157,12 +158,13 @@ class TransactionStream(DataStream):
         self.total_processed += len(clear_data)
 
         # 1.just計算
-        for key, value in clear_data:
-            if key == "buy":
-                result += value
+        for data in clear_data:
+            for key, value in data.items():
+                if key == "buy":
+                    result += value
 
-            if key == "sell":
-                result -= value
+                if key == "sell":
+                    result -= value
 
         # 2.整形して出力
         count = len(clear_data)
@@ -189,7 +191,7 @@ class EventStream(DataStream):
     def __init__(self, stream_id: str) -> None:
         """初期化関数"""
 
-        super.__init__(stream_id)
+        super().__init__(stream_id)
         self.total_processed = 0
 
     def filter_data(self,
@@ -207,7 +209,7 @@ class EventStream(DataStream):
             if not isinstance(item, str):
                 continue
 
-            if not item == "login" or "error" or "logout":
+            if item not in ["login", "error", "logout"]:
                 continue
 
             clean_data.append(item)
@@ -255,6 +257,9 @@ def main() -> None:
     id_dict = {"sensor": {"SENSOR": 1},
                "transaction": {"TRANS": 1},
                "event": {"EVENT": 1}}
+    id_dict_stats = {"Sensor": {"SENSOR": 1},
+                     "Transaction": {"TRANS": 1},
+                     "Event": {"EVENT": 1}}
     data_base = (
         ("Environmental Data",
          "sensor",
@@ -269,21 +274,62 @@ def main() -> None:
          EventStream,
          ["login", "error", "logout"])
          )
+    data_base_sats = (
+        ("Sensor",
+         SensorStream,
+         [{"temp": 22.5}, {"humidity": 65}]),
+        ("Transaction",
+         TransactionStream,
+         [{"buy": 100}, {"sell": 150}, {"buy": 75}, {"sell": 75}]),
+        ("Event",
+         EventStream,
+         ["login", "error", "logout"])
+         )
 
     # 2.process実行
     for type, name, stream, data in data_base:
         item_list = list(id_dict[name].items())
         key, value = item_list[0]
         id = f"{key}_{value:03}"
+
+        # 2-1.例文に合わせるだけの整形
+        data_list = []
+        for item in data:
+            if isinstance(item, dict):
+                k, v = list(item.items())[0]
+                data_list.append(str(f"{k}: {v}"))
+            else:
+                data_list.append(str(item))
+        format_data = f"[{', '.join(data_list)}]"
+
         print(f"Initializing {name} Stream...\n"
               f"Stream ID: {id}, Type: {type}\n"
-              f"Processing {name} batch: {data}")
+              f"Processing {name} batch: {format_data}")
 
         processor = stream(id)
         text = processor.process_batch(data)
         print(text)
         print()
 
+    # 3.statsDEMO
+    print("=== Polymorphic Stream Processing ===")
+    print("Processing mixed stream types through unified interface...")
+    print()
+
+    print("Batch 1 Results:")
+    for name, stream, data in data_base_sats:
+        item_list = list(id_dict_stats[name].items())
+        key, value = item_list[0]
+        id = f"{key}_{value:03}"
+        processor = stream(id)
+
+        processor.process_batch(data)
+        stats = processor.get_stats()
+        count = stats["total_processed"]
+        print(f"- {name} data: {count} readings processed")
+    print()
+
+    print("")
 
 if __name__ == "__main__":
     main()
