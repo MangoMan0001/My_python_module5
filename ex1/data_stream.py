@@ -265,6 +265,19 @@ class EventStream(DataStream):
         return stats
 
 
+class StreamProcessor:
+    """
+    ストイーム処理を統括するマネージャークラス
+    """
+
+    def process_stream(self, stream: DataStream, data_batch: list[Any]) -> str:
+        """
+        DataStream型とdata_batchを受けとり、処理を実行する
+        """
+
+        return stream.process_batch(data_batch)
+
+
 def main() -> None:
     """
     list_data_stream_DEMO
@@ -315,6 +328,7 @@ def main() -> None:
         item_list = list(id_dict[name].items())
         key, value = item_list[0]
         id = f"{key}_{value:03}"
+        stream_manager = StreamProcessor()
 
         # 2-1.例文に合わせるだけの整形
         data_list = []
@@ -331,7 +345,7 @@ def main() -> None:
               f"Processing {name} batch: {format_data}")
 
         processor = stream(id)
-        text = processor.process_batch(data)
+        text = stream_manager(processor, data)
         print(text)
         print()
 
@@ -349,6 +363,7 @@ def main() -> None:
         processor = stream(id)
 
         processor.process_batch(data)
+        stream_manager(processor, data)
         stats = processor.get_stats()
         count = stats["total_processed"]
         print(f"- {name} data: {count} {ing} processed")
