@@ -61,7 +61,7 @@ class NexusManager:
 class ProcessingStage(Protocol):
     """processメソッドを持つクラスは全部このクラスの仲間"""
 
-    def process(self, data: any) -> Any:
+    def process(self, data: Any) -> Any:
         """共通メソッド"""
 
         pass

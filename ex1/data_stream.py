@@ -345,7 +345,7 @@ def main() -> None:
               f"Processing {name} batch: {format_data}")
 
         processor = stream(id)
-        text = stream_manager(processor, data)
+        text = stream_manager.process_stream(processor, data)
         print(text)
         print()
 
@@ -363,7 +363,7 @@ def main() -> None:
         processor = stream(id)
 
         processor.process_batch(data)
-        stream_manager(processor, data)
+        stream_manager.process_stream(processor, data)
         stats = processor.get_stats()
         count = stats["total_processed"]
         print(f"- {name} data: {count} {ing} processed")

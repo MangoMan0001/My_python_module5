@@ -41,7 +41,7 @@ class NumericProcessor(DataProcessor):
 
         # 1.条件文作成
         is_list = isinstance(data, list)
-        is_num = all(isinstance(value, int or float) for value in data)
+        is_num = all(isinstance(value, (int, float)) for value in data)
 
         # 2.dataがlistで中身がintかfloatのみTrueとする
         if is_list and is_num:
