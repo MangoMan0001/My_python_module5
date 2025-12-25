@@ -52,7 +52,7 @@ class NexusManager:
                 print(text)
 
         except Exception as e:
-            # 3.エラー実演
+            # 3.エラー実演、かっこいいセリフを吐く（トム・クルーズみたいに）
             print(f"Error detected: {e}")
             print("Recovery initiated: Switching to backup processor")
             print("Recovery successful: Pipeline restored, processing resumed")
@@ -76,7 +76,7 @@ class ProcessingPipeline(ABC):
     def __init__(self) -> None:
         """初期化：作業員リストを作る"""
 
-        self.stages: list[ProcessingPipeline] = []
+        self.stages: list[ProcessingStage] = []
 
     def add_stage(self, stage: ProcessingStage) -> None:
         """作業員（ステージ）をラインに追加する"""

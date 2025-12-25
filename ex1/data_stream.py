@@ -379,6 +379,7 @@ def main() -> None:
             if 0 < count:
                 print(f"{count} {message}", end="")
             else:
+                i += 1
                 continue
             if i < count:
                 print(", ", end="")
